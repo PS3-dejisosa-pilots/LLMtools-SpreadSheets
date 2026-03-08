@@ -65,7 +65,7 @@ object TestDataGenerator {
      * 出力途中切れ継続テスト用データセット（30行）を生成。
      *
      * notes フィールドにテキストを持たせて出力トークンを増大させる。
-     * application-test.properties に spring.ai.openai.chat.options.max-tokens=800 を設定すると
+     * @TestPropertySource に spring.ai.openai.chat.options.max-completion-tokens=800 を設定すると
      * 1コールで約5行返却されるため、継続ループを確実にテストできる。
      * （ChatServiceContinuationTest 参照）
      */

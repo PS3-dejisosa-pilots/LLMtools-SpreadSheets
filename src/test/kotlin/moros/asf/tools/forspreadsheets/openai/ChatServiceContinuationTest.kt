@@ -30,7 +30,7 @@ abstract class AbstractChatServiceContinuationTest {
 
     /**
      * true: 継続ループの発火（複数回APIコール）まで検証する。
-     *   max-tokens 制限が有効なモデル（gpt-4o 等）でのみ使用可能。
+     *   max-completion-tokens 制限が有効なモデル（gpt-4o 等）でのみ使用可能。
      * false: 全行返却の正確性のみ検証する。
      *   リーズニングモデル（gpt-5.2 等）は内部思考トークンがトークン枠を消費するため
      *   小さな max-completion-tokens では出力が0になってしまい継続ループを強制発火できない。
@@ -40,9 +40,10 @@ abstract class AbstractChatServiceContinuationTest {
     /**
      * 継続ループ正常完了テスト。
      *
-     * requireContinuationLoop=true の場合: max-tokens を制限して finish_reason=length を
+     * requireContinuationLoop=true の場合: max-completion-tokens を制限して finish_reason=length を
      * 強制発火させ、継続ループが機能してすべての行を回収できることを検証する。
-     * 継続時は処理済み分を除いた残りデータのみ送信するため、モデルに行番号の追跡を求めない。
+     * 継続時は全データを再送信し、出力済み行を AssistantMessage として注入することで
+     * モデルが全体のコンテキストを参照しつつ続きから再開できるようにする。
      * requireContinuationLoop=false の場合: トークン制限なしで全行が正しく返却されることのみ検証する。
      */
     @Test
@@ -135,14 +136,14 @@ abstract class AbstractChatServiceContinuationTest {
 
 // =============================================================================
 // gpt-4o 用具象クラス
-// max-tokens=800 により finish_reason=length を強制発火させ、継続ループを検証する。
+// max-completion-tokens=800 により finish_reason=length を強制発火させ、継続ループを検証する。
 // =============================================================================
 @SpringBootTest
 @TestPropertySource(
     locations  = ["classpath:application-test.properties"],
     properties = [
         "spring.ai.openai.chat.options.model=gpt-4o",
-        "spring.ai.openai.chat.options.max-tokens=800"
+        "spring.ai.openai.chat.options.max-completion-tokens=800"
     ]
 )
 class ChatServiceContinuationGpt4oTest : AbstractChatServiceContinuationTest() {
@@ -169,17 +170,17 @@ class ChatServiceContinuationGpt52Test : AbstractChatServiceContinuationTest() {
 // =============================================================================
 // 最大試行回数超過後の部分返却テスト（gpt-4o）
 //
-// max-tokens=200 に設定することで1コールで1行しか返却されない状態を作り出す。
-// 30行 ÷ 1行/コール = 30コール必要 > MAX_CONTINUATION_ATTEMPTS(20) のため、
-// 20回試行しても全行処理が完了しないが、例外はスローされず処理済み行をそのまま返却する。
-// 継続時は処理済み分を除いた残りデータのみ送信するため、行の欠落は発生しない。
+// max-completion-tokens=200 に設定することで1コールで少数行しか返却されない状態を作り出す。
+// MAX_CONTINUATION_ATTEMPTS(20) に達しても全行処理が完了しないが、
+// 例外はスローされず処理済み行をそのまま返却する。
+// 継続時は全データを再送信し、出力済み行を AssistantMessage として注入する。
 // =============================================================================
 @SpringBootTest
 @TestPropertySource(
     locations  = ["classpath:application-test.properties"],
     properties = [
         "spring.ai.openai.chat.options.model=gpt-4o",
-        "spring.ai.openai.chat.options.max-tokens=200"
+        "spring.ai.openai.chat.options.max-completion-tokens=200"
     ]
 )
 class ChatServiceMaxAttemptsPartialReturnTest {
@@ -193,7 +194,7 @@ class ChatServiceMaxAttemptsPartialReturnTest {
     /**
      * MAX_CONTINUATION_ATTEMPTS を超えた場合に例外なしで処理済み行を返却することを検証する。
      *
-     * max-tokens=200 の場合、1行 ≈ 120トークンのため1コールで1行のみ返却される。
+     * max-completion-tokens=200 の場合、1行 ≈ 120トークンのため1コールで1行のみ返却される。
      * 30行の処理には30コールが必要だが上限は20回のため、全行処理は完了しない。
      * 以前は OutputTruncatedException をスローしていたが、現在は警告ログのみで
      * 処理済み行をそのまま返却する（プロンプト要件による意図的な絞り込みとの区別不可のため）。
@@ -201,7 +202,7 @@ class ChatServiceMaxAttemptsPartialReturnTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     fun testMaxAttempts_ReturnsPartialResultsWithoutException() {
-        println("=== Max Attempts Partial Return Test (max-tokens=200) ===")
+        println("=== Max Attempts Partial Return Test (max-completion-tokens=200) ===")
 
         val testData = TestDataGenerator.generateOutputTruncationDataset()
         val message = ChatMessage(
@@ -210,7 +211,7 @@ class ChatServiceMaxAttemptsPartialReturnTest {
         )
 
         println("  Input rows                : ${testData.size}")
-        println("  max-tokens                : 200 (~1 row/call)")
+        println("  max-completion-tokens      : 200 (~1 row/call)")
         println("  MAX_CONTINUATION_ATTEMPTS : 20")
         println("  Expected: partial rows returned without exception")
 
@@ -224,7 +225,7 @@ class ChatServiceMaxAttemptsPartialReturnTest {
         assertTrue(returnedRows > 0,
             "少なくとも1行は処理されているべきです。実際: $returnedRows")
 
-        // 全行には満たないこと（max-tokens=200 の制約により）
+        // 全行には満たないこと（max-completion-tokens=200 の制約により）
         assertTrue(returnedRows < testData.size,
             "全行処理が完了していないはずです。実際: $returnedRows / ${testData.size}")
 

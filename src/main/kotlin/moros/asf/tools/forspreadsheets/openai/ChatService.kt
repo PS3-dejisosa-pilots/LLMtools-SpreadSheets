@@ -10,7 +10,6 @@ import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.chat.prompt.Prompt
-import org.springframework.ai.openai.OpenAiChatOptions
 import org.springframework.stereotype.Component
 
 @Serializable
@@ -75,8 +74,6 @@ class ChatService(val chat: ChatModel) {
             {"id":2,"name":"Hanako","status":"inactive"}
         """.trimIndent()
 
-        private val DEFAULT_OPTIONS = OpenAiChatOptions.builder().build()
-
         private const val CONTINUATION_USER_PROMPT = "続きを出力してください。"
     }
 
@@ -108,7 +105,7 @@ class ChatService(val chat: ChatModel) {
                 )
             }
 
-            val prompt = Prompt(messages, DEFAULT_OPTIONS)
+            val prompt = Prompt(messages)
 
             val response = try {
                 chat.call(prompt)
@@ -129,18 +126,21 @@ class ChatService(val chat: ChatModel) {
             log.debug("raw response:{}", responseText)
 
             val parsedRows = parseNdjsonLines(responseText)
-            accumulatedRows.addAll(parsedRows)
+            val newRows = deduplicateRows(parsedRows, accumulatedRows)
+            accumulatedRows.addAll(newRows)
             // stop が返るにもかかわらず出力が実際には不完全なケースがある
             val finishReason = response.result.metadata.finishReason?.lowercase() ?: "stop"
 
+            val duplicateCount = parsedRows.size - newRows.size
             log.info(
-                "[attempt={}/{}] finishReason={}, parsedRows={}, accumulated={}, remaining={}",
+                "[attempt={}/{}] finishReason={}, parsedRows={}, newRows={}, duplicates={}, accumulated={}, remaining={}",
                 attempts, MAX_CONTINUATION_ATTEMPTS,
-                finishReason, parsedRows.size, accumulatedRows.size, allData.size - accumulatedRows.size
+                finishReason, parsedRows.size, newRows.size, duplicateCount,
+                accumulatedRows.size, allData.size - accumulatedRows.size
             )
-            log.debug("parsed:\n {}", parsedRows.joinToString("\n  ") { Json.encodeToString(it) })
+            log.debug("parsed:\n {}", newRows.joinToString("\n  ") { Json.encodeToString(it) })
 
-            if (parsedRows.isEmpty()) break
+            if (newRows.isEmpty()) break
         }
 
         if (accumulatedRows.size < allData.size) {
@@ -151,6 +151,29 @@ class ChatService(val chat: ChatModel) {
         }
 
         return ChatResponse(mapOf("output" to ChatData(accumulatedRows)))
+    }
+
+    private fun deduplicateRows(
+        parsedRows: List<Map<String, JsonPrimitive?>>,
+        accumulatedRows: List<Map<String, JsonPrimitive?>>
+    ): List<Map<String, JsonPrimitive?>> {
+        if (accumulatedRows.isEmpty() || parsedRows.isEmpty()) return parsedRows
+
+        // parsedRows の先頭 k 行が accumulatedRows の末尾 k 行と一致する最大の k を探す
+        val maxOverlap = minOf(parsedRows.size, accumulatedRows.size)
+        var overlap = 0
+        for (k in 1..maxOverlap) {
+            val tailOfAccumulated = accumulatedRows.subList(accumulatedRows.size - k, accumulatedRows.size)
+            val headOfParsed = parsedRows.subList(0, k)
+            if (tailOfAccumulated == headOfParsed) {
+                overlap = k
+            }
+        }
+
+        if (overlap > 0) {
+            log.debug("継続レスポンスの先頭 {} 行が蓄積済み末尾と重複のため除去", overlap)
+        }
+        return parsedRows.subList(overlap, parsedRows.size)
     }
 
     private fun parseNdjsonLines(ndjsonText: String): List<Map<String, JsonPrimitive?>> {
