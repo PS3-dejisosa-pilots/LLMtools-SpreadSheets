@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "moros"
-version = "0.1.0"
+version = "0.1.1"
 
 java {
 	toolchain {
@@ -151,7 +151,7 @@ tasks.register("copyApp") {
 	doLast {
 		// Copy Application JAR
 		copy {
-			from("build/libs/LLMToolsForSpreadsheets-0.1.0.jar")
+			from("build/libs/LLMToolsForSpreadsheets-0.1.1.jar")
 			into("exe")
 		}
 

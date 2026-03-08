@@ -23,7 +23,7 @@ $Env:PATH = "$Env:JAVA_HOME\bin;$Env:PATH"
 # Launch application
 # -------------------------------------
 
-$appArgs = "-Dspring.config.location=`"$confFile`"","-Dspring.profiles.active=LLMToolbox","-Dfile.encoding=UTF-8","-jar","LLMToolsForSpreadsheets-0.1.0.jar"
+$appArgs = "-Dspring.config.location=`"$confFile`"","-Dspring.profiles.active=LLMToolbox","-Dfile.encoding=UTF-8","-jar","LLMToolsForSpreadsheets-0.1.1.jar"
 
 if ($useDebug -eq 0) {
     Start-Process -FilePath "$javaExe" -ArgumentList $appArgs -WindowStyle Hidden

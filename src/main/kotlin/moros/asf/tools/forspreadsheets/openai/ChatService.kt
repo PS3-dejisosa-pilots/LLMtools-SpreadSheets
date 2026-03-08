@@ -150,7 +150,19 @@ class ChatService(val chat: ChatModel) {
             )
         }
 
-        return ChatResponse(mapOf("output" to ChatData(accumulatedRows)))
+        // 暫定対応: APIレスポンスがインプット行数を超えた場合、超過分を切り捨てる。
+        // 選択範囲を超える行数を書き込もうとすると SetSelectedAreaData.ps1 が失敗するため、ここで制限する。
+        val outputRows = if (accumulatedRows.size > allData.size) {
+            log.warn(
+                "AIモデルがインプットよりも多い行を返却しました: {}/{} 行。超過分を切り捨てます。",
+                accumulatedRows.size, allData.size
+            )
+            accumulatedRows.take(allData.size)
+        } else {
+            accumulatedRows
+        }
+
+        return ChatResponse(mapOf("output" to ChatData(outputRows)))
     }
 
     private fun deduplicateRows(
