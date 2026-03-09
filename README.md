@@ -1,6 +1,6 @@
 # LLMtools - ForSpreadsheets
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.org/projects/jdk/17/) [![Kotlin](https://img.shields.io/badge/Kotlin-1.9-purple.svg)](https://kotlinlang.org/) [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3-brightgreen.svg)](https://spring.io/projects/spring-boot) [![Spring AI](https://img.shields.io/badge/Spring_AI-1.2-brightgreen.svg)](https://spring.io/projects/spring-ai)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.org/projects/jdk/17/) [![Kotlin](https://img.shields.io/badge/Kotlin-1.9-purple.svg)](https://kotlinlang.org/) [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3-brightgreen.svg)](https://spring.io/projects/spring-boot) [![Spring AI](https://img.shields.io/badge/Spring_AI-1.1-brightgreen.svg)](https://spring.io/projects/spring-ai)
 
 LLM（大規模言語モデル）を活用して、Excel ドキュメントをインタラクティブに操作・検索するためのデスクトップツールです。  
 OpenAI API 互換のエンドポイントに接続し、スプレッドシートとの対話的な操作を実現します。
@@ -211,3 +211,9 @@ gradlew genExe
 ## ライセンス
 
 本プロジェクトは [GNU General Public License v2.0](LICENSE) のもとで公開されています。
+
+---
+
+## 開発・管理
+
+本リポジトリは、**NTTデータ 第三公共事業本部 デジタルソサエティ事業部** によって開発および管理されています。
